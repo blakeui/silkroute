@@ -13,11 +13,12 @@ def test_database():
     # create table
     col_1 = {'name': 'TEST_ID', 'type': 'INT', 'properties': 'PRIMARY KEY NOT NULL'}
     col_2 = {'name': 'VALUE', 'type': 'CHAR(50)'}
-    print database.create_table('test', cols=[col_1, col_2])
+    col_3 = {'name': 'VALUE2', 'type': 'CHAR(50)'}
+    database.create_table('test', cols=[col_1, col_2, col_3])
     # insert
-    database.upsert_row('test', {'TEST_ID': '12', 'VALUE': 'TEST'})
+    database.upsert_row('test', {'TEST_ID': '12', 'VALUE': 'TEST1', 'VALUE2': 'TEST11'})
     # update
-    database.upsert_row('test', {'TEST_ID': '12', 'VALUE': 'TEST2'})
+    database.upsert_row('test', {'TEST_ID': '12', 'VALUE': 'TEST2', 'VALUE2': 'TEST12'})
     # search
     assert_equal(database.search('test', {'TEST_ID': '12'}, cols=('VALUE')), [(u'TEST2',)])
     # delete and verify

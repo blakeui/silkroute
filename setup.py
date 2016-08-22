@@ -29,7 +29,7 @@ setup(
     author_email='debanjum@gmail.com',
     url='https://github.com/debanjum/silkroute',
     packages=[
-        'silkroute', 'seller', 'buyer', 'stocker'
+        'silkroute', 'seller', 'buyer', 'stocker', 'goods'
     ],
     package_dir={'silkroute':
                  'silkroute'},

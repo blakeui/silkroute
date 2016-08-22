@@ -4,57 +4,112 @@
 """
 from .database import sqlDB
 from abc import abstractmethod
+from silkroute.goods import Goods
 
 
 class Entity(object):
-    def __init__(self, entity_name, type_, location=None, reputation='0', database=None, tablename='entity'):
+    def __init__(self, entity_name, type_, balance='0', location='', reputation='0', database=None, tablename='entity'):
         """Stocker API for interacting with Stocks, Market
         """
-        # Initialise/Connect to database
+        # Initialize variable
         self.name = entity_name
         self.location = location
         self.type_ = type_
         self.reputation = reputation
+        self.balance = balance
+
+        # Initialise/Connect to database
         self.DB = sqlDB(database)
         self.tablename = tablename
         self.columns = [{'name': 'ENTITY_ID', 'type': 'CHAR(50)', 'properties': 'PRIMARY KEY  NOT NULL'},
                         {'name': 'TYPE', 'type': 'INT'},
-                        {'name': 'LOCATION', 'type': 'INT'},
+                        {'name': 'BALANCE', 'type': 'INT'},
+                        {'name': 'LOCATION', 'type': 'CHAR(50)'},
                         {'name': 'REPUTATION', 'type': 'INT'}]
-        self.DB.create_table(self.tablename, cols=self.columns)
-        self.DB.upsert_row(tablename, {'ENTITY_ID': entity_name, 'REPUTATION': self.reputation, 'LOCATION': location})
 
-    def transact(self, goods, amount, other, transaction_type, event_type):
+        # Create self table if doesn't exist
+        self.DB.create_table(self.tablename, cols=self.columns)
+
+        # Insert self into table
+        self.DB.upsert_row(tablename, {'ENTITY_ID': entity_name, 'BALANCE': balance,
+                                       'REPUTATION': self.reputation, 'LOCATION': location})
+
+    def transact(self, goods, other, transaction_type, event_type):
         # if transaction initiated by us, request response from other party(=> send SYN)
         if event_type == 'initiate':
-            # Find other in database
-            other_in_db = self.DB.search('entity', {'ENTITY_ID': other})
-
-            # Fail transaction, if other not found
-            if not len(other_in_db) > 0:
-                return False
-
-            # Create an object of the other party to interact with
-            name, entity_type, location, reputation = other_in_db[0]
-            other_object = Entity(name, entity_type, location=location, reputation=reputation)
-
             # if other party agrees to transact with us(=> recieved SYNACK)
-            if other_object.respond(goods, amount, self, transaction_type):
+            if other.respond(goods, self, transaction_type):
+                # fail if transaction not possible
+                if not self.valid(goods, transaction_type, from_=self, to=other):
+                    return False
+                # update both entity states (done at single point to keep transaction atomic)
+                self.update(goods, transaction_type, from_=self, to=other)
                 # update goods state
-                goods.update(goods, amount, transaction_type, initiator=self, responder=other_object)
-                self.DB.upsert_row(self.tablename, goods, amount, transaction_type)
+                goods.update(goods, transaction_type, from_=self, to=other)
                 # send ACK to other party
                 return True
 
         # else if other party requests a transaction with us, evaluate request
         elif event_type == 'respond':
             # send SYNACK if we agree to request
-            if self.validate(goods, amount, transaction_type):
+            if self.evaluate_offer(goods, other, transaction_type):
                 return True
         # if we're here means the transaction failed
         return False
 
+    @classmethod
+    def valid(self, goods, transaction_type, to, from_):
+        """test if 'to' has the money and 'from_' has the goods
+        """
+        # test if item exists in marketplace
+        goods_in_db = Goods().search(goods)
+        if not goods_in_db:
+            return False
+
+        goods_id, name, cost, current_owner, current_location = goods_in_db
+
+        # test if entity buying has the money to procure goods
+        if transaction_type == 'buy' and to.balance < cost:
+            return False
+        # test if item belongs to entity selling
+        if transaction_type == 'sell' and current_owner != from_:
+            return False
+
+        # if we've reached here then the transaction seems plausible
+        return True
+
+    @staticmethod
+    def update(self, goods, transaction_type, from_, to):
+        goods_id, name, cost, current_owner, current_location = Goods().search(goods)
+        if transaction_type == 'buy':
+            # seller gains money
+            self.DB.upsert_row(self.tablename,
+                               {'ENTITY_ID': to.entity_name, 'BALANCE': to.balance + cost,
+                                'OWNER': to, 'LOCATION': to.location})
+            # buyer loses money
+            self.DB.upsert_row(self.tablename,
+                               {'ENTITY_ID': from_.entity_name, 'BALANCE': from_.balance - cost,
+                                'REPUTATION': from_.reputation, 'LOCATION': from_.location})
+        elif transaction_type == 'sell':
+            # buyer loses money
+            self.DB.upsert_row(self.tablename,
+                               {'ENTITY_ID': to.entity_name, 'BALANCE': to.balance - cost,
+                                'OWNER': to, 'LOCATION': to.location})
+            # seller gains money
+            self.DB.upsert_row(self.tablename,
+                               {'ENTITY_ID': from_.entity_name, 'BALANCE': from_.balance + cost,
+                                'REPUTATION': from_.reputation, 'LOCATION': from_.location})
+
+    def initiate(self, goods, amount, other, transaction_type):
+        """initiate transaction(type_=buy, sell) with the other party"""
+        # if other party is requesting to sell to us
+        return self.transact(goods, amount, other, transaction_type=transaction_type, event_type='initiate')
+
+    def respond(self, goods, amount, other, transaction_type):
+        """respond to transaction request(type_=buy, sell) from other party"""
+        return self.transact(goods, amount, other, transaction_type=transaction_type, event_type='respond')
+
     @abstractmethod
-    def validate(goods, amount, other):
-        """evaluate if transaction is possible and beneficial to self"""
+    def evaluate_offer(goods, amount, other):
+        """evaluate if transaction is in self. interest"""
         pass

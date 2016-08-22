@@ -3,6 +3,8 @@
 """Stocker - stocker interactions
 """
 from silkroute.entity import Entity
+from silkroute.seller import Seller
+from silkroute.buyer import Buyer
 
 
 class Stocker(Entity):
@@ -12,15 +14,18 @@ class Stocker(Entity):
         # Database Initialisation
         super(Stocker, self).__init__(name, 'stocker', location, reputation=reputation, database=database)
 
-    def initiate(self, goods, amount, other, transaction_type):
-        """initiate transaction(type_=buy, sell) with the other party"""
-        # if other party is requesting to sell to us
-        return self.transact(goods, amount, other, transaction_type=transaction_type, event_type='initiate')
+    def transact(self, goods, other, transaction_type, event_type):
+        # Find other in database
+        other_in_db = self.DB.search('entity', {'ENTITY_ID': other})
 
-    def respond(self, goods, amount, other, transaction_type):
-        """respond to transaction request(type_=buy, sell) from other party"""
-        return self.transact(goods, amount, other, transaction_type=transaction_type, event_type='respond')
+        # Fail transaction if other not found
+        if not len(other_in_db) > 0:
+            return False
 
-    def search(self, goods):
-        """search for goods in stock"""
-        return self.DB.search(goods)
+        # Create an object of the other party to interact with
+        name, entity_type, location, reputation = other_in_db[0]
+        entity_class = {'stocker': Stocker, 'buyer': Buyer, 'seller': Seller}[entity_type]
+        other_entity = entity_class(name, location=location, reputation=reputation)
+
+        # Pass other's object to super
+        super(Stocker, self).transact(goods, other_entity, transaction_type, event_type)

@@ -5,5 +5,4 @@ __author__ = 'Debanjum Singh Solanky'
 __email__ = 'debanjum@gmail.com'
 __version__ = '0.1.0'
 
-__all__ = ['stocker', 'seller', 'buyer', 'goods']
-
+from .stocker import Stocker

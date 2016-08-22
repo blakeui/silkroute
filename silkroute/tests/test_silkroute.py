@@ -9,13 +9,9 @@ Tests for `silkroute` module.
 """
 
 from nose.tools import assert_equal
-from contextlib import contextmanager
 from click.testing import CliRunner
-from time import sleep
 
-from silkroute import silkroute
 from silkroute import cli
-
 from silkroute.goods import Goods
 from silkroute.buyer import Buyer
 from silkroute.seller import Seller
@@ -34,7 +30,7 @@ class TestSilkroute(object):
     @classmethod
     def setup_class(cls):
         pass
-    
+
     def test_something(self):
         market = Goods(database=self.database)
         stocker = Stocker('batman', location='gotham', database=self.database)
@@ -46,7 +42,6 @@ class TestSilkroute(object):
         assert_equal(buyer.transact('bananas', 'sauron', 'buy', 'initiate'), False)
         assert_equal(seller.transact('bananas', 'sauron', 'sell', 'initiate'), False)
 
-    
     def test_command_line_interface(self):
         runner = CliRunner()
         result = runner.invoke(cli.main)

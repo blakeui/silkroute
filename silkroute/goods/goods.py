@@ -13,7 +13,7 @@ class Goods():
         # Create/Connect to Database
         self.DB = sqlDB(database)
         self.tablename = tablename
-        self.columns = [{'name': 'GOODS_ID', 'type': 'INT', 'properties': 'PRIMARY KEY  NOT NULL'},
+        self.columns = [{'name': 'GOODS_ID', 'type': 'INTEGER', 'properties': 'PRIMARY KEY'},
                         {'name': 'NAME', 'type': 'CHAR(50)'},
                         {'name': 'COST', 'type': 'INT'},
                         {'name': 'OWNER', 'type': 'CHAR(50)'},
@@ -32,31 +32,27 @@ class Goods():
         # search for goods in marketplace
         goods_id, name, cost, current_owner, current_location = self.search(goods)
         if transaction_type == 'stock':
-            self.DB.upsert_row(self.tablename,
-                               {'GOODS_ID': goods_id, 'GOODS_NAME': name,
-                                'OWNER': current_owner, 'LOCATION': to.location})
+            self.upsert({goods_id, name, cost, current_owner, to.location})
         elif transaction_type == 'buy':
-            self.DB.upsert_row(self.tablename,
-                               {'GOODS_ID': goods_id, 'GOODS_NAME': name,
-                                'OWNER': from_, 'LOCATION': from_.location})
+            self.upsert({goods_id, name, cost, from_, from_.location})
         elif transaction_type == 'sell':
-            self.DB.upsert_row(self.tablename,
-                               {'GOODS_ID': goods_id, 'GOODS_NAME': name,
-                                'OWNER': to, 'LOCATION': to.location})
+            self.upsert({goods_id, name, cost, to, to.location})
 
-    @staticmethod
     def search(self, key):
-        goods_in_db = self.DB.search('goods', {'GOODS_ID': key})
+        goods_in_db = self.DB.search('goods', {'NAME': key})
         if len(goods_in_db) < 1:
             return None
         else:
             return goods_in_db[0]
 
-    @staticmethod
-    def valid(self, goods, transaction_type, to, from_):
+    def valid(self, goods, transaction_type, to=None, from_=None):
         goods_in_db = self.search(goods)
         # if goods exist in the marketplace
         if goods_in_db:
             return True
         else:
             return False
+
+    def upsert(self, goods_name, cost, owner, location=''):
+        return self.DB.upsert_row(self.tablename, {'NAME': goods_name, 'COST': cost,
+                                                   'OWNER': owner, 'LOCATION': location})

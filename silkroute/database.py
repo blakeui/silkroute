@@ -29,15 +29,18 @@ class sqlDB():
         values = str(data.values())[1:-1]
         query_string = 'INSERT OR REPLACE INTO {t_name} ({columns}) VALUES ({values})'
         upsert_string = query_string.format(t_name=tablename, columns=columns, values=values)
-        return self.cursor.execute(upsert_string)
+        self.cursor.execute(upsert_string)
+        return self.cursor.execute('SELECT last_insert_rowid();').fetchone()[0]
 
     def search(self, tablename, k_dict, cols=None):
         """Search for row in db identified by k_dict return cols"""
         if not cols:
             cols = '*'
-        query_string = 'SELECT {cols} from {t_name} where {key} = {value}'
-        search_query = query_string.format(t_name=tablename, cols=cols, key=k_dict.keys()[0], value=k_dict.values()[0])
-        return self.cursor.execute(search_query).fetchall()
+        key = k_dict.keys()[0]
+        value = k_dict.values()[0].decode('utf-8')
+        query_string = 'SELECT {cols} from {t_name} where {key} = ?'
+        search_query = query_string.format(t_name=tablename, cols=cols, key=key)
+        return self.cursor.execute(search_query, (value,)).fetchall()
 
     def delete(self, tablename, k_dict):
         """Delete row in db identified by k_dict"""

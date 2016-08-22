@@ -8,8 +8,17 @@ class sqlDB():
     def __init__(self, database=None):
         """Initialise Database"""
         self.database = database or default_database
+        self.connection = None
+        self.cursor = None
+
+    def __enter__(self):
         self.connection = sqlite3.connect(self.database)
         self.cursor = self.connection.cursor()
+        return self
+
+    def __exit__(self, exc_class, exc, traceback):
+        self.connection.commit()
+        self.connection.close()
 
     def create_table(self, tablename, cols=None):
         """Create table in database with specified columns"""

@@ -3,8 +3,11 @@
 
 from silkroute.goods import Goods
 from nose.tools import assert_equal
+from silkroute.utils import clean_temp
 
-test_market = Goods(database='/tmp/silkroute-goods-test.db')
+# clear previous temp directories if any
+clean_temp('/tmp/silkroute-test.db')
+test_market = Goods(database='/tmp/silkroute-test.db')
 
 
 def test_upsert():
@@ -21,5 +24,5 @@ def test_search():
 
 
 def test_valid():
-    assert_equal(test_market.valid('bananas', 'buy'), True)
-    assert_equal(test_market.valid('brownie', 'buy'), False)
+    assert_equal(test_market.valid('bananas'), True)
+    assert_equal(test_market.valid('brownie'), False)
